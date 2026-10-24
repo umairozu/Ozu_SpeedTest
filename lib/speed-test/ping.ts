@@ -87,6 +87,10 @@ function calculateMedian(values: number[]): number {
 }
 
 
+function calculateLowest(values: number[]): number {
+  if (values.length === 0) return 0; // empty array case
+  return Math.min(...values);
+}
 
 
 
@@ -98,6 +102,7 @@ export async function measurePing(sampleCount = 19): Promise<PingMeasurement> {
   // Ignore one warm-up request. It may include connection
   // establishment or a server cold start.
   await measureOnePing();
+  await measureOnePing();
 
   const samples: PingSample[] = [];
 
@@ -107,11 +112,11 @@ export async function measurePing(sampleCount = 19): Promise<PingMeasurement> {
   }
 
   return {
-    roundTripMs: calculateMedian(samples.map(sample => sample.roundTripMs)),
+    roundTripMs:calculateLowest (samples.map(sample => sample.roundTripMs)),
 
-    serverProcessingMs: calculateMedian(samples.map(sample => sample.serverProcessingMs)),
+    serverProcessingMs: calculateLowest(samples.map(sample => sample.serverProcessingMs)),
 
-    networkPingMs: calculateMedian(samples.map(sample => sample.networkPingMs)),
+    networkPingMs: calculateLowest(samples.map(sample => sample.networkPingMs)),
 
     samples
   };
