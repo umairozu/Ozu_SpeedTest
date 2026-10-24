@@ -22,7 +22,7 @@ type TestPhase = 'idle'| 'ping'| 'download'| 'upload'| 'complete'| 'error';
 type TestResults = Record<MeterName, number | null>;
 
 const BYTES_PER_REQUEST = 4 * 1024 * 1024;
-const REQUEST_COUNT = 4;
+const REQUEST_COUNT = 1;
 
 const SERVER_LOCATION = 'Frankfurt, Germany';
 
@@ -138,10 +138,7 @@ export default function SpeedTest() {
 
       const pingMeasurement = await measurePing();
 
-      setResults(currentResults => ({
-        ...currentResults,
-        ping: pingMeasurement.networkPingMs
-      }));
+      setResults(currentResults => ({...currentResults, ping: pingMeasurement.networkPingMs}));
 
       setPhase('download');
 
@@ -153,10 +150,7 @@ export default function SpeedTest() {
           REQUEST_COUNT
         );
 
-      setResults(currentResults => ({
-        ...currentResults,
-        download: downloadMeasurement.megabitsPerSecond
-      }));
+      setResults(currentResults => ({...currentResults, download: downloadMeasurement.megabitsPerSecond}));
 
       setPhase('upload');
 
@@ -169,10 +163,7 @@ export default function SpeedTest() {
           pingMeasurement.networkPingMs
         );
 
-      setResults(currentResults => ({
-        ...currentResults,
-        upload: uploadMeasurement.megabitsPerSecond
-      }));
+      setResults(currentResults => ({...currentResults, upload: uploadMeasurement.megabitsPerSecond}));
 
       setPhase('complete');
     } catch (caughtError) {
