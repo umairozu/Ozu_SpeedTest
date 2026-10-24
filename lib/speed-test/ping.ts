@@ -90,7 +90,7 @@ function calculateMedian(values: number[]): number {
 
 
 
-export async function measurePing(sampleCount = 6): Promise<PingMeasurement> {
+export async function measurePing(sampleCount = 19): Promise<PingMeasurement> {
   if (!Number.isSafeInteger(sampleCount) || sampleCount < 1 || sampleCount > 20) {
     throw new RangeError('sampleCount must be an integer between 1 and 20.');
   }
@@ -107,17 +107,11 @@ export async function measurePing(sampleCount = 6): Promise<PingMeasurement> {
   }
 
   return {
-    roundTripMs: calculateMedian(
-      samples.map(sample => sample.roundTripMs)
-    ),
+    roundTripMs: calculateMedian(samples.map(sample => sample.roundTripMs)),
 
-    serverProcessingMs: calculateMedian(
-      samples.map(sample => sample.serverProcessingMs)
-    ),
+    serverProcessingMs: calculateMedian(samples.map(sample => sample.serverProcessingMs)),
 
-    networkPingMs: calculateMedian(
-      samples.map(sample => sample.networkPingMs)
-    ),
+    networkPingMs: calculateMedian(samples.map(sample => sample.networkPingMs)),
 
     samples
   };
