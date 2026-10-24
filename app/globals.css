@@ -90,15 +90,15 @@ h1 {
 }
 
 .dial-reading span {
-  font-size: 1rem;
+  font-size: 2rem;
   font-weight: 700;
   letter-spacing: -0.03em;
 }
 
 .dial-reading p {
-  margin: 0 0 0 2px;
+  margin: 2px 0 0 10px;
   color: #d8dce7;
-  font-size: 0.61rem;
+  font-size: 1.5rem;
   font-weight: 600;
 }
 

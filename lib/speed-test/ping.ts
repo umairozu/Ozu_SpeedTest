@@ -14,14 +14,6 @@ export type PingMeasurement = {
 };
 
 
-
-
-type PingResult = {
-  roundTripMs: number;
-  serverProcessingMs: number;
-  networkPingMs: number;
-};
-
 /**
  * Read one duration metric from a Server-Timing header.
  * Example: Server-Timing: app;dur=2.47
@@ -47,8 +39,8 @@ export const getServerTimingDuration = (response: Response, metricName = 'app'):
 
 
 
-async function measureOnePing(): Promise<PingResult> {
-  const url = new URL('/api/ping');
+async function measureOnePing(): Promise<PingSample> {
+  const url = new URL('/api/ping', window.location.href);
 
   url.searchParams.set('_speedtest', `${Date.now()}-${Math.random()}`);
 
@@ -77,6 +69,8 @@ async function measureOnePing(): Promise<PingResult> {
     networkPingMs
   };
 }
+
+
 
 
 
