@@ -1,87 +1,97 @@
 # Ozu SpeedTest
 
-Ozu SpeedTest is a simple web application that measures a user’s:
+**Live website:** [https://ozu-speed-test-git-main-kml-dev.vercel.app](https://ozu-speed-test-git-main-kml-dev.vercel.app)
+
+Ozu SpeedTest is a browser-based application that measures:
 
 - Ping in milliseconds
 - Download speed in Mbps
 - Upload speed in Mbps
+- Bytes transferred during download and upload
 
-The project is built with Next.js, TypeScript, and Node.js, and deployed using Vercel.
+The project uses Next.js, React, TypeScript, Node.js, and Vercel.
 
-## Run Locally
+## System Requirements
 
-Make sure Node.js is installed, then run:
+- Node.js 20.9.0 or newer
+- npm, included with Node.js
+
+No database, API key, or additional service is required.
+
+## Download the Project
+
+Clone the GitHub repository:
 
 ```bash
-git clone https://github.com/umairozu/Ozu_SpeedTest.git
+git clone https://github.com/umairozu/proj_01.git
 cd Ozu_SpeedTest
+```
+
+Install the required dependencies:
+
+```bash
 npm install
+```
+
+## Run in Development Mode
+
+Start the local development server:
+
+```bash
 npm run dev
 ```
 
-Open:
+Open the following address in your browser:
 
 ```text
 http://localhost:3000
 ```
 
-## How It Works
+Changes made to the project files will normally appear automatically while the development server is running.
 
-### Ping
+## Build and Run
 
-The browser sends several small requests to:
+Create a production build:
 
-```text
-/api/ping
+```bash
+npm run build
 ```
 
-The application measures the request round-trip time and displays the result in milliseconds.
+Start the production build:
 
-### Download
-
-The browser downloads multiple 4 MiB files concurrently from:
-
-```text
-/api/download
+```bash
+npm start
 ```
 
-Download speed is calculated using:
+Then open:
 
 ```text
-download speed = total downloaded bits / total duration
+http://localhost:3000
 ```
 
-The result is converted to megabits per second:
+## API Routes
 
-```text
-Mbps = (total bytes × 8) / duration in seconds / 1,000,000
-```
-
-### Upload
-
-The browser generates random binary data and uploads multiple 4 MiB payloads concurrently to:
-
-```text
-/api/upload
-```
-
-Upload speed is calculated using:
-
-```text
-upload speed = total uploaded bits / upload duration
-```
+| Route | Method | Purpose |
+|---|---|---|
+| `/api/ping` | `GET` | Measures HTTP response latency |
+| `/api/download` | `GET` | Returns binary data for download testing |
+| `/api/upload` | `POST` | Receives binary data for upload testing |
 
 ## Project Structure
 
 ```text
 app/
 ├── api/
-│   ├── ping/route.ts
-│   ├── download/route.ts
-│   └── upload/route.ts
+│   ├── ping/
+│   │   └── route.ts
+│   ├── download/
+│   │   └── route.ts
+│   └── upload/
+│       └── route.ts
 ├── components/
 │   └── speed-test.tsx
 ├── globals.css
+├── layout.tsx
 └── page.tsx
 
 lib/
@@ -89,19 +99,16 @@ lib/
     ├── ping.ts
     ├── download.ts
     └── upload.ts
+
+public/
+└── speedtest-meter.svg
 ```
 
 ## Important Notes
 
-- Localhost tests your local development server, not the Frankfurt server.
-- The displayed ping is HTTP response time, so it may differ from Ookla or an operating-system ping command.
-- Each complete test transfers approximately 16 MiB for download and 16 MiB for upload.
-- Results can vary because of Wi-Fi, network congestion, browser activity, server load, VPN usage, and the selected server location.
-
-## Technologies
-
-- Next.js
-- React
-- TypeScript
-- Node.js
-- Vercel
+- Testing on `localhost` measures communication with your own computer, not the deployed Vercel server.
+- Use the live website to measure performance against the deployed server.
+- Payload sizes are selected randomly, so the number of transferred bytes may change between tests.
+- Results can vary because of Wi-Fi quality, network congestion, VPN usage, browser activity, server load, and physical distance from the server.
+- The application measures HTTP performance and may not exactly match commercial speed-testing services.
+- Running a speed test consumes network data because real binary payloads are downloaded and uploaded.
