@@ -1,6 +1,9 @@
 
+// This route receives binary data from the browser for one upload measurement.
+// Limit each upload to 4 MiB to protect the endpoint from oversized requests.
 const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
 
+// Build all upload validation errors in the same JSON format.
 function errorResponse(
   message: string,
   status = 400
@@ -18,9 +21,11 @@ function errorResponse(
 
 export async function POST(request: Request): Promise<Response> {
 
+  // Measure validation work separately from the time spent receiving the body.
   const preProcessingStartedAt = performance.now();
   const url = new URL(request.url);
 
+  // The query value lets the server verify the amount the client intended to send.
   const rawExpectedBytes = url.searchParams.get('bytes');
 
   if (rawExpectedBytes === null || !/^\d+$/.test(rawExpectedBytes)) {
@@ -48,6 +53,7 @@ export async function POST(request: Request): Promise<Response> {
 
   const contentLengthHeader = request.headers.get('Content-Length');
 
+  // Content-Length may be absent, but when present it must match the expected size.
   if (contentLengthHeader !== null) {
     const contentLength =  Number(contentLengthHeader);
 
@@ -75,6 +81,7 @@ export async function POST(request: Request): Promise<Response> {
   const postProcessingStartedAt = performance.now();
 
 
+  // Compare the real body size with the value supplied in the URL.
   const receivedBytes = body.byteLength;
   if (receivedBytes !== expectedBytes) {
     return errorResponse(`Expected ${expectedBytes} bytes but received ${receivedBytes} bytes.`);
@@ -85,10 +92,12 @@ export async function POST(request: Request): Promise<Response> {
 
   const serverProcessingMs = preProcessingMs + postProcessingMs;
 
+  // No response body is needed; the result is returned through response headers.
   return new Response(null, {
     status: 204,
     headers: {
       'Cache-Control': 'no-store',
+      // Report server work separately and confirm the number of received bytes.
       'Server-Timing': `app;dur=${serverProcessingMs.toFixed(3)}`,
       'X-Received-Bytes': String(receivedBytes)
     }

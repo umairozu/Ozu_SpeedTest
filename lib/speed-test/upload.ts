@@ -1,4 +1,5 @@
 
+// Values produced by one upload request.
 export type UploadMeasurement = {
   requestedBytes: number;
   receivedBytes: number;
@@ -16,6 +17,7 @@ export type UploadMeasurement = {
 };
 
 export type UploadBatchMeasurement = {
+  // These values summarize all requests in the upload batch.
   requestCount: number;
   bytesPerRequest: number;
   totalBytes: number;
@@ -39,6 +41,7 @@ const RANDOM_CHUNK_SIZE = 65_536;
 function createRandomPayload(requestedBytes: number): Uint8Array {
   const payload = new Uint8Array(requestedBytes);
 
+  // Fill in browser-safe chunks; random bytes are difficult to compress.
   for (let offset = 0; offset < requestedBytes; offset += RANDOM_CHUNK_SIZE) {
     const end = Math.min(offset + RANDOM_CHUNK_SIZE, requestedBytes);
     crypto.getRandomValues(payload.subarray(offset, end));
@@ -83,6 +86,7 @@ function getServerTimingDuration(response: Response, metricName = 'app'): number
 
 
 function getResourceTiming(resourceUrl: string): InterimAwareTiming | undefined {
+  // Select the newest browser timing entry created for this request URL.
   const entries = performance.getEntriesByName(resourceUrl, 'resource');
 
   return entries[entries.length - 1] as InterimAwareTiming | undefined;
@@ -109,6 +113,7 @@ export class UploadTest {
 
   async measure(requestedBytes: number, pingMs = 0): Promise<UploadMeasurement> {
 
+    // One measurement sends one binary payload of exactly requestedBytes.
     if (!Number.isSafeInteger(requestedBytes) || requestedBytes <= 0 || requestedBytes > MAX_UPLOAD_BYTES) {
       throw new RangeError(`requestedBytes must be an integer between 1 and ${MAX_UPLOAD_BYTES}.`);
     }
@@ -126,6 +131,7 @@ export class UploadTest {
 
     const wallClockStartedAt = performance.now();
 
+    // POST the raw binary payload; the response arrives after the server receives it.
     const response = await fetch(url, {
         method: 'POST',
         cache: 'no-store',
@@ -145,6 +151,7 @@ export class UploadTest {
 
 
 
+    // Trust the server-confirmed byte count rather than only the requested size.
     const receivedBytesHeader =  response.headers.get('X-Received-Bytes');
     const receivedBytes = Number(receivedBytesHeader);
 
@@ -167,6 +174,7 @@ export class UploadTest {
     let finalResponseStartMs: number | undefined = wallClockFinishedAt;
 
     if (resourceTiming) {
+      // Resource Timing can isolate the request start and final response headers.
       const finalResponseStart = getFinalResponseStart(resourceTiming);
 
       const hasDetailedTiming = resourceTiming.requestStart > 0 && finalResponseStart >  resourceTiming.requestStart;
@@ -180,6 +188,7 @@ export class UploadTest {
       }
     }
 
+    // Remove ping and server work to estimate time spent transferring the payload.
     const uploadDurationMs = requestToResponseMs - serverProcessingMs - pingMs;
 
     if (uploadDurationMs <= 0) {
@@ -213,7 +222,8 @@ export class UploadTest {
 
 
 
-  async measureBatch(bytesPerRequest = MAX_UPLOAD_BYTES, requestCount = 4, pingMs = 0): Promise<UploadBatchMeasurement> {
+  // Run uploads concurrently and choose 1 byte to 4 MiB when no size is given.
+  async measureBatch(bytesPerRequest = Math.floor(Math.random() * MAX_UPLOAD_BYTES) + 1, requestCount = 4, pingMs = 0): Promise<UploadBatchMeasurement> {
 
     if (!Number.isSafeInteger(requestCount) || requestCount < 1 || requestCount > 6) {
       throw new RangeError('requestCount must be an integer between 1 and 6.');
@@ -225,8 +235,10 @@ export class UploadTest {
 
     const measurements = await Promise.all(Array.from( { length: requestCount }, () => this.measure(bytesPerRequest, pingMs) ));
 
+    // Only count bytes that the server confirmed receiving successfully.
     const totalBytes = measurements.reduce((sum, measurement) => sum + measurement.receivedBytes, 0);
 
+    // Build one shared transfer window across every concurrent upload.
     const earliestUploadStart = Math.min( ...measurements.map(measurement => measurement.requestStartMs! + measurement.pingMs));
 
     const latestUploadEnd = Math.max( ...measurements.map(measurement => measurement.finalResponseStartMs! - measurement.serverProcessingMs));
@@ -237,6 +249,7 @@ export class UploadTest {
       throw new Error('The measured upload batch duration was not valid.');
     }
 
+    // Batch speed is total confirmed bits divided by the shared upload window.
     const megabitsPerSecond = (totalBytes * 8) / (durationMs / 1000) / 1_000_000;
 
     const timingSource = measurements.every(measurement => measurement.timingSource === 'resource') ? 'resource' : 'wall-clock';

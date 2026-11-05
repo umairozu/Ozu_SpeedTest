@@ -1,7 +1,10 @@
 
 export type PingSample = {
+  // Complete browser-to-server-to-browser time.
   roundTripMs: number;
+  // Time reported by the API route through Server-Timing.
   serverProcessingMs: number;
+  // Estimated network time after server work is removed.
   networkPingMs: number;
 };
 
@@ -40,12 +43,15 @@ export const getServerTimingDuration = (response: Response, metricName = 'app'):
 
 
 async function measureOnePing(): Promise<PingSample> {
+  // One sample represents one complete HTTP request and response.
   const url = new URL('/api/ping', window.location.href);
 
+  // Make every request unique so it cannot be reused from a cache.
   url.searchParams.set('_speedtest', `${Date.now()}-${Math.random()}`);
 
   const startedAt = performance.now();
 
+  // no-store asks the browser to contact the API instead of using a cached response.
   const response = await fetch(url, {
     method: 'GET',
     cache: 'no-store'
@@ -61,6 +67,7 @@ async function measureOnePing(): Promise<PingSample> {
 
   const serverProcessingMs = getServerTimingDuration(response, 'app') ?? 0;
 
+  // Estimate network latency by removing the server's reported processing time.
   const networkPingMs = Math.max(0, roundTripMs - serverProcessingMs);
 
   return {
@@ -73,7 +80,7 @@ async function measureOnePing(): Promise<PingSample> {
 
 
 
-
+//Take the median of the sample 
 function calculateMedian(values: number[]): number {
   const sorted = [...values].sort((first, second) => first - second);
 
@@ -86,15 +93,16 @@ function calculateMedian(values: number[]): number {
   return (sorted[middle - 1] + sorted[middle]) / 2;
 }
 
-
+//optional function
 function calculateLowest(values: number[]): number {
-  if (values.length === 0) return 0; // empty array case
+  if (values.length === 0) return 0;
   return Math.min(...values);
 }
 
 
 
 export async function measurePing(sampleCount = 19): Promise<PingMeasurement> {
+  // Several samples reduce the effect of one temporarily slow request.
   if (!Number.isSafeInteger(sampleCount) || sampleCount < 1 || sampleCount > 20) {
     throw new RangeError('sampleCount must be an integer between 1 and 20.');
   }
@@ -112,11 +120,12 @@ export async function measurePing(sampleCount = 19): Promise<PingMeasurement> {
   }
 
   return {
-    roundTripMs:calculateLowest (samples.map(sample => sample.roundTripMs)),
+    // Use the median sample to represent the observed round trip.
+    roundTripMs:calculateMedian(samples.map(sample => sample.roundTripMs)),
 
-    serverProcessingMs: calculateLowest(samples.map(sample => sample.serverProcessingMs)),
+    serverProcessingMs: calculateMedian(samples.map(sample => sample.serverProcessingMs)),
 
-    networkPingMs: calculateLowest(samples.map(sample => sample.networkPingMs)),
+    networkPingMs: calculateMedian(samples.map(sample => sample.networkPingMs)),
 
     samples
   };

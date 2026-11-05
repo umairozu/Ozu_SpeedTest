@@ -21,7 +21,12 @@ type TestPhase = 'idle'| 'ping'| 'download'| 'upload'| 'complete'| 'error';
 
 type TestResults = Record<MeterName, number | null>;
 
-const BYTES_PER_REQUEST = 4 * 1024 * 1024;
+// Download and upload report transferred bytes in addition to their speeds.
+type TransferredBytes = {
+  download: number | null;
+  upload: number | null;
+};
+
 const REQUEST_COUNT = 1;
 
 const SERVER_LOCATION = 'Frankfurt, Germany';
@@ -60,6 +65,7 @@ function createEmptyResults(): TestResults {
 
 
 function getStatusMessage(phase: TestPhase, error: string | null): string {
+  // Convert the current test phase into a message shown below the button.
   switch (phase) {
     case 'ping':
       return 'Measuring ping...';
@@ -85,7 +91,8 @@ function getStatusMessage(phase: TestPhase, error: string | null): string {
 
 
 
-function Meter({config, value}: {config: MeterConfig; value: number | null;}) {
+function Meter({config, value,transferredBytes}: {config: MeterConfig; value: number | null; transferredBytes?: number | null;}) {
+  // Ping uses one decimal place; download and upload use two.
   const displayedValue = value === null  ? '--' : value.toFixed(config.name === 'ping' ? 1 : 2);
 
   return (
@@ -99,9 +106,12 @@ function Meter({config, value}: {config: MeterConfig; value: number | null;}) {
           <p>{config.unit}</p>
         </div>
       </div>
+            {transferredBytes !== null && transferredBytes !== undefined && (
+            <p className='transferred-bytes'> {transferredBytes.toLocaleString()} bytes transferred</p> )}
 
-      <h2>{config.label}</h2>
-      <p>{config.description}</p>
+    <h2 >{config.label}</h2>
+    <p>{config.description}</p>
+
     </article>
   );
 }
@@ -112,13 +122,15 @@ function Meter({config, value}: {config: MeterConfig; value: number | null;}) {
 
 
 export default function SpeedTest() {
+  // phase controls the status text, disabled button, and current test step.
   const [phase, setPhase] = useState<TestPhase>('idle');
 
-  const [results, setResults] = useState<TestResults>(
-    createEmptyResults
-  );
+  // Results start as null so each meter displays -- before a test completes.
+  const [results, setResults] = useState<TestResults>(createEmptyResults);
 
   const [error, setError] = useState<string | null>(null);
+
+  const [transferredBytes, setTransferredBytes] = useState<TransferredBytes>({download: null, upload: null});
 
   const isRunning =
     phase === 'ping' ||
@@ -126,44 +138,55 @@ export default function SpeedTest() {
     phase === 'upload';
 
   async function handleCheck(): Promise<void> {
+    // Ignore extra clicks while a test is already running.
     if (isRunning) {
       return;
     }
 
     setError(null);
+    // Clear the previous run before starting a new sequence.
     setResults(createEmptyResults());
+    setTransferredBytes({download: null, upload: null});
 
     try {
+
+      //Ping value retrieval and setup
       setPhase('ping');
-
       const pingMeasurement = await measurePing();
-
       setResults(currentResults => ({...currentResults, ping: pingMeasurement.networkPingMs}));
 
+
+
+      //Download data retrieval and setup
       setPhase('download');
 
       const downloadTest = new DownloadTest('/api/download');
 
-      const downloadMeasurement =
-        await downloadTest.measureBatch(
-          BYTES_PER_REQUEST,
+      const downloadMeasurement = await downloadTest.measureBatch(
+          undefined,
           REQUEST_COUNT
         );
-
+      setTransferredBytes(current => ({...current, download: downloadMeasurement.totalBytes}));
       setResults(currentResults => ({...currentResults, download: downloadMeasurement.megabitsPerSecond}));
 
+
+
+
+      //Upload data retrieval and setup
       setPhase('upload');
 
       const uploadTest = new UploadTest('/api/upload');
 
       const uploadMeasurement =
         await uploadTest.measureBatch(
-          BYTES_PER_REQUEST,
+          undefined,
           REQUEST_COUNT,
           pingMeasurement.networkPingMs
         );
-
+      setTransferredBytes(current => ({...current, upload: uploadMeasurement.totalBytes}));
       setResults(currentResults => ({...currentResults, upload: uploadMeasurement.megabitsPerSecond}));
+
+
 
       setPhase('complete');
     } catch (caughtError) {
@@ -205,6 +228,11 @@ export default function SpeedTest() {
             key={meter.name}
             config={meter}
             value={results[meter.name]}
+            transferredBytes={
+                              meter.name === 'download' ? transferredBytes.download
+                                                        : meter.name === 'upload' ? transferredBytes.upload
+                                                        : null
+                              }
           />
         ))}
       </section>
@@ -248,8 +276,6 @@ export default function SpeedTest() {
 
 
 }
-
-
 
 
 

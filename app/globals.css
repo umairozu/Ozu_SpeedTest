@@ -110,10 +110,24 @@ h1 {
   letter-spacing: 0.035em;
 }
 
+.meter {
+  display: grid;
+  justify-items: center;
+  position: relative; /* Container context */
+}
+
 .meter > p {
-  margin: 6px 0 0;
-  color: #d9dce0;
-  font-size: 0.9rem;
+margin: 6px 0 0;
+color: #d9dce0;
+font-size: 0.9rem;
+}
+
+.meter > p.transferred-bytes {
+  position: absolute;
+  top: 105px; 
+  width: 142px;
+  height: 30px;
+  filter: drop-shadow(0 14px 25px rgba(228, 221, 221, 0.28));
 }
 
 .controls {

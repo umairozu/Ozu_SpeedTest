@@ -1,4 +1,5 @@
 
+// Values produced by one download request.
 export type DownloadMeasurement = {
   requestedBytes: number;
   receivedBytes: number;
@@ -14,6 +15,7 @@ export type DownloadMeasurement = {
 };
 
 
+// Combined result produced after every request in a download batch finishes.
 export type DownloadBatchMeasurement = {
   requestCount: number;
   bytesPerRequest: number;
@@ -27,8 +29,6 @@ export type DownloadBatchMeasurement = {
 
 
 
-
-
 type InterimAwareTiming = PerformanceResourceTiming & {
   finalResponseHeadersStart?: number;
 };
@@ -36,6 +36,7 @@ type InterimAwareTiming = PerformanceResourceTiming & {
 const MAX_DOWNLOAD_BYTES = 4 * 1024 * 1024;
 
 function getServerTimingDuration(response: Response,  metricName = 'app'): number | undefined {
+  // Example header: Server-Timing: app;dur=2.47
   const header = response.headers.get('Server-Timing');
 
   if (!header) {
@@ -69,6 +70,7 @@ function getServerTimingDuration(response: Response,  metricName = 'app'): numbe
 
 function getResourceTiming(resourceUrl: string): InterimAwareTiming | undefined {
 
+  // Multiple requests may use this URL, so the newest matching entry is required.
   const entries = performance.getEntriesByName(resourceUrl, 'resource');
   const lastEntry = entries[entries.length - 1];
 
@@ -96,6 +98,7 @@ export class DownloadTest {
 
   async measure(requestedBytes: number): Promise<DownloadMeasurement> {
 
+    // One measurement downloads one response of exactly requestedBytes.
     let finalResponseStartMs: number | undefined;
     let responseEndMs: number | undefined;
 
@@ -106,11 +109,13 @@ export class DownloadTest {
 
     const url = new URL(this.endpoint, window.location.href);
 
+    // Request the chosen size and prevent a previous response from being reused.
     url.searchParams.set('bytes', String(requestedBytes));
     url.searchParams.set('_speedtest', `${Date.now()}-${Math.random()}`);
 
     const requestStartedAt = performance.now();
 
+    // Request the generated binary response from the download API.
     const response = await fetch(url, {
       method: 'GET',
       cache: 'no-store'
@@ -125,6 +130,7 @@ export class DownloadTest {
     }
 
     const serverProcessingMs =   getServerTimingDuration(response, 'app') ?? 0;
+    // Reading the full body ensures the download is complete before timing ends.
     const responseBody = await response.arrayBuffer();
     const downloadFinishedAt = performance.now();
     const receivedBytes = responseBody.byteLength;
@@ -139,8 +145,7 @@ export class DownloadTest {
     let payloadDownloadMs =  downloadFinishedAt -  responseHeadersReceivedAt;
 
 
-    //More accurate and alternate way to get resource time if resourceTiming module is available
-    //otherwise, the above can work too!!
+    // Prefer browser resource timestamps; keep wall-clock timing as a fallback.
     if (resourceTiming) {
       const finalResponseStart =  getFinalResponseStart(resourceTiming);
       const hasDetailedTiming =   resourceTiming.requestStart > 0 &&  finalResponseStart > 0 && 
@@ -157,6 +162,7 @@ export class DownloadTest {
 
 
     const pingMs = Math.max(0, ttfbMs - serverProcessingMs);
+    // Include network setup and payload transfer, but remove server generation time.
     const measurementDurationMs = pingMs + payloadDownloadMs;
 
     if (measurementDurationMs <= 0) {
@@ -166,6 +172,7 @@ export class DownloadTest {
     const transferredBits = receivedBytes * 8;
     const durationSeconds = measurementDurationMs / 1000;
     const bitsPerSecond =   transferredBits / durationSeconds;
+    // Network speeds are normally displayed as decimal megabits per second.
     const megabitsPerSecond = bitsPerSecond / 1_000_000;
 
     return {
@@ -186,8 +193,8 @@ export class DownloadTest {
 
 
 
-    //for multiple batch processing of max 4 Kib
-    async measureBatch(bytesPerRequest = 4 * 1024 * 1024, requestCount = 4): Promise<DownloadBatchMeasurement> {
+    // Run the batch concurrently and choose 1 byte to 4 MiB when no size is given.
+    async measureBatch(  bytesPerRequest = Math.floor(Math.random() * (4 * 1024 * 1024)) + 1, requestCount = 4): Promise<DownloadBatchMeasurement> {
 
     if (!Number.isSafeInteger(requestCount) || requestCount < 1 || requestCount > 6) {
         throw new RangeError('requestCount must be an integer between 1 and 6.');
@@ -195,6 +202,7 @@ export class DownloadTest {
 
     const batchStartedAt = performance.now();
 
+    // Promise.all starts the requests together and waits until all of them finish.
     const measurements = await Promise.all(
                                             Array.from( { length: requestCount }, () => this.measure(bytesPerRequest) )
     );
@@ -210,6 +218,7 @@ export class DownloadTest {
     let timingSource: 'resource' | 'wall-clock';
 
     if (hasResourceTiming) {
+        // Measure from the first response payload byte to the final completed response.
         const earliestResponseStart = Math.min( ...measurements.map(measurement => measurement.finalResponseStartMs!) );
         const latestResponseEnd = Math.max( ...measurements.map(measurement => measurement.responseEndMs!) );
 
@@ -217,6 +226,7 @@ export class DownloadTest {
         timingSource = 'resource';
 
     } else {
+        // Fall back to the complete Promise.all duration when detailed timing is unavailable.
         durationMs = batchFinishedAt - batchStartedAt;
         timingSource = 'wall-clock';
 
@@ -229,6 +239,7 @@ export class DownloadTest {
     const transferredBits = totalBytes * 8;
     const durationSeconds = durationMs / 1000;
 
+    // Batch speed is total received bits divided by the shared transfer window.
     const megabitsPerSecond = transferredBits / durationSeconds / 1_000_000;
 
     return {
