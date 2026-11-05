@@ -1,6 +1,6 @@
 # Ozu SpeedTest
 
-**Live website:** [https://ozu-speed-test-git-main-kml-dev.vercel.app](https://ozu-speed-test-git-main-kml-dev.vercel.app)
+**Live website:** [https://ozu-speed-test.vercel.app/](https://ozu-speed-test.vercel.app/)
 
 Ozu SpeedTest is a browser-based application that measures:
 
@@ -23,7 +23,7 @@ No database, API key, or additional service is required.
 Clone the GitHub repository:
 
 ```bash
-git clone https://github.com/umairozu/proj_01.git
+git clone https://github.com/umairozu/Ozu_SpeedTest.git
 cd Ozu_SpeedTest
 ```
 
@@ -48,26 +48,6 @@ http://localhost:3000
 ```
 
 Changes made to the project files will normally appear automatically while the development server is running.
-
-## Build and Run
-
-Create a production build:
-
-```bash
-npm run build
-```
-
-Start the production build:
-
-```bash
-npm start
-```
-
-Then open:
-
-```text
-http://localhost:3000
-```
 
 ## API Routes
 
